@@ -12,17 +12,22 @@
 #import <FMHEDNet/fm_ocr_scanner.hpp>
 #import "OpenCVUtil.h"
 
+#import <AVFoundation/AVFoundation.h>
+
+#import "KFB_EdgeDetectionDisplayLayer.h"
+
 //如果不使用视频流，只使用单独的一张图片进行测试，则打开下面这个宏
 //#define DEBUG_SINGLE_IMAGE
 
-#define VIDEO_SIZE AVCaptureSessionPreset640x480
-#define HW_RATIO (64.0/48.0)
+#define VIDEO_SIZE AVCaptureSessionPreset1920x1080
+#define HW_RATIO (16.0/9.0)
 
 //#define LOG_CV_MAT_TYPE(mat) NSLog(@"___log_OpenCV_info___, "#mat".type() is: %d", mat.type());
 #define LOG_CV_MAT_TYPE(mat)
 
 
-@interface ViewController () <CvVideoCameraDelegate>
+@interface ViewController ()
+<CvVideoCameraDelegate, AVCapturePhotoCaptureDelegate>
 
 @property (weak, nonatomic) IBOutlet UIView *rawVideoView;
 @property (weak, nonatomic) IBOutlet UIImageView *imageView1;
@@ -31,10 +36,21 @@
 @property (weak, nonatomic) IBOutlet UIImageView *imageView4;
 @property (weak, nonatomic) IBOutlet UILabel *infoLabel;
 
+@property (nonatomic, readwrite, strong) AVCaptureSession *captureSession;
+@property (nonatomic, readwrite, strong) AVCaptureVideoPreviewLayer *captureVideoPreviewLayer;
+@property (nonatomic, readwrite, strong) AVCaptureDevice *captureDevice;
+@property (nonatomic, readwrite, strong) AVCapturePhotoOutput *capturePhotoOutput;
+
+@property (nonatomic, readwrite, strong) KFB_EdgeDetectionDisplayLayer *detectionDisplayLayer;
+
 @property (nonatomic, assign) BOOL isDebugMode;
 @property (nonatomic, strong) CvVideoCamera* videoCamera;
 @property (nonatomic, strong) FMHEDNet *hedNet;
 @property (nonatomic, assign) NSTimeInterval timestampForCallProcessImage;
+
+@property (nonatomic, readwrite, assign) CGFloat scaleForVideo;
+@property (nonatomic, readwrite, assign) CGSize videoPixelSize;
+
 
 #ifdef DEBUG_SINGLE_IMAGE
 @property (nonatomic, assign) cv::Mat inputImageMat;
@@ -57,6 +73,15 @@
     }
     
     return _videoCamera;
+}
+
+- (KFB_EdgeDetectionDisplayLayer *)detectionDisplayLayer
+{
+    if (!_detectionDisplayLayer)
+    {
+        _detectionDisplayLayer = [[KFB_EdgeDetectionDisplayLayer alloc] init];
+    }
+    return _detectionDisplayLayer;
 }
 
 - (FMHEDNet *)hedNet {
@@ -90,11 +115,24 @@
     }
 }
     
-
+- (AVCaptureDevice *)cameraWithPostion:(AVCaptureDevicePosition)position
+{
+    AVCaptureDeviceDiscoverySession *devicesIOS10 = [AVCaptureDeviceDiscoverySession  discoverySessionWithDeviceTypes:@[AVCaptureDeviceTypeBuiltInWideAngleCamera] mediaType:AVMediaTypeVideo position:position];
+    
+    NSArray *devicesIOS  = devicesIOS10.devices;
+    for (AVCaptureDevice *device in devicesIOS) {
+        if ([device position] == position) {
+            return device;
+        }
+    }
+    return nil;
+}
     
 - (void)viewDidLoad {
     [super viewDidLoad];
-    // Do any additional setup after loading the view, typically from a nib.
+    
+    self.scaleForVideo = 0.f;
+    
     self.isDebugMode = NO;
     
 #ifdef DEBUG_SINGLE_IMAGE
@@ -105,6 +143,38 @@
 #endif
     
     NSLog(@"--debug, opencv version is: %s", CV_VERSION);
+    
+//    var captureSession = AVCaptureSession()
+//    var previewLayer = AVCaptureVideoPreviewLayer()
+//    var movieOutput = AVCaptureMovieFileOutput()
+    
+    self.captureSession = [[AVCaptureSession alloc] init];
+    [self.captureSession setSessionPreset:AVCaptureSessionPresetHigh];
+    self.captureVideoPreviewLayer = [[AVCaptureVideoPreviewLayer alloc] initWithSession:self.captureSession];
+    self.captureVideoPreviewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
+    self.captureVideoPreviewLayer.connection.videoOrientation = AVCaptureVideoOrientationPortrait;
+    
+    self.captureDevice = [self cameraWithPostion:AVCaptureDevicePositionBack];
+
+    if (!self.captureDevice)
+    {
+        return;
+    }
+ 
+    AVCaptureDeviceInput *input = [AVCaptureDeviceInput deviceInputWithDevice:self.captureDevice
+                                                                        error:nil];
+    [self.captureSession addInput:input];
+    
+    self.capturePhotoOutput = [[AVCapturePhotoOutput alloc] init];
+    
+    NSDictionary *setDic = @{AVVideoCodecKey:AVVideoCodecJPEG};
+    AVCapturePhotoSettings *photoSettings = [AVCapturePhotoSettings photoSettingsWithFormat:setDic];
+    [self.capturePhotoOutput setPhotoSettingsForSceneMonitoring:photoSettings];
+    [self.captureSession addOutput:self.capturePhotoOutput];
+    
+    [self.rawVideoView.layer addSublayer:self.captureVideoPreviewLayer];
+
+    [self.rawVideoView.layer addSublayer:self.detectionDisplayLayer];
 }
     
 - (void)viewWillLayoutSubviews {
@@ -112,7 +182,7 @@
     CGFloat imageViewWidth = containerViewWidth / 2;
     CGFloat topPadding = 50.0;
     
-    self.rawVideoView.frame = CGRectMake(0.0, 0.0 + topPadding, containerViewWidth, containerViewWidth * HW_RATIO);
+//    self.rawVideoView.frame = CGRectMake(0.0, 0.0 + topPadding, containerViewWidth, containerViewWidth * HW_RATIO);
     
     self.imageView1.frame = CGRectMake(0.0, 0.0 + topPadding,
                                        imageViewWidth, imageViewWidth * HW_RATIO);
@@ -125,12 +195,34 @@
                                        imageViewWidth, imageViewWidth * HW_RATIO);
 }
 
+- (void)viewDidLayoutSubviews
+{
+    [super viewDidLayoutSubviews];
+    
+    if (self.captureVideoPreviewLayer)
+    {
+        self.captureVideoPreviewLayer.bounds = self.rawVideoView.bounds;
+        self.captureVideoPreviewLayer.position = CGPointMake(CGRectGetMidX(self.rawVideoView.bounds),
+                                                             CGRectGetMidY(self.rawVideoView.bounds));
+        
+        self.detectionDisplayLayer.bounds = self.captureVideoPreviewLayer.bounds;
+        self.detectionDisplayLayer.position = self.captureVideoPreviewLayer.position;
+    }
+}
+
 - (void)viewWillAppear:(BOOL)animated {
     [self startCapture];
 }
     
 - (void)viewWillDisappear:(BOOL)animated {
     [self stopCapture];
+}
+
+- (void)viewDidAppear:(BOOL)animated
+{
+    [super viewDidAppear:animated];
+    
+    [self capturePhoto];
 }
 
 - (void)didReceiveMemoryWarning {
@@ -142,14 +234,29 @@
     self.isDebugMode = !self.isDebugMode;
 }
 
+/// 捕捉照片，然后处理
+- (void)capturePhoto
+{
+    NSDictionary *setDic = @{AVVideoCodecKey:AVVideoCodecJPEG};
+    AVCapturePhotoSettings *photoSettings = [AVCapturePhotoSettings photoSettingsWithFormat:setDic];
+    photoSettings.flashMode = AVCaptureFlashModeOff;
+
+    [self.capturePhotoOutput capturePhotoWithSettings:photoSettings
+                                             delegate:self];
+}
+
 
 - (void)startCapture {
     self.timestampForCallProcessImage = [[NSDate date] timeIntervalSince1970];
-    [self.videoCamera start];
+//    [self.videoCamera start];
+    
+    [self.captureSession startRunning];
 }
     
 - (void)stopCapture {
-    [self.videoCamera stop];
+//    [self.videoCamera stop];
+    
+    [self.captureSession stopRunning];
 }
 
 - (void)debugShowFloatCVMatPixel:(cv::Mat&)mat {
@@ -310,32 +417,123 @@
             });
         } else {
             if (find_rect == true) {
-                std::vector<cv::Point> scaled_points;
+//                std::vector<cv::Point> scaled_points;
                 int original_height, original_width;
                 original_height = rawBgraImage.rows;
                 original_width = rawBgraImage.cols;
+                
+                NSMutableArray *points = [[NSMutableArray alloc] initWithCapacity:4];
+                
+                NSMutableString *pointsLogString = [[NSMutableString alloc] initWithFormat:@"originalSize:(%d, %d)", original_width, original_height];
                 
                 for(int i = 0; i < cv_points.size(); i++) {
                     cv::Point cv_point = cv_points[i];
                     
                     cv::Point scaled_point = cv::Point(cv_point.x * original_width / [FMHEDNet inputImageWidth], cv_point.y * original_height / [FMHEDNet inputImageHeight]);
-                    scaled_points.push_back(scaled_point);
+//                    scaled_points.push_back(scaled_point);
                     
                     /** convert from cv::Point to CGPoint
                      CGPoint point = CGPointMake(scaled_point.x, scaled_point.y);
                     */
+                    
+                    CGPoint point = CGPointMake(scaled_point.x, scaled_point.y);
+//                    CGPoint point = CGPointMake(scaled_point.y, scaled_point.x);
+                    
+                    [pointsLogString appendFormat:@"%d(%f, %f)", i, point.x, point.y];
+                    
+                    CGFloat x = CGRectGetWidth(self.captureVideoPreviewLayer.bounds)/self.videoPixelSize.width*point.x;
+                    CGFloat y = CGRectGetHeight(self.captureVideoPreviewLayer.bounds)/self.videoPixelSize.height*(self.videoPixelSize.height-point.y);
+                    
+                    [points addObject:[NSValue valueWithCGPoint:CGPointMake(x, y)]];
                 }
                 
+//                cv::line(rawBgraImage, scaled_points[0], scaled_points[1], CV_RGB(255, 0, 0), 2);
+//                cv::line(rawBgraImage, scaled_points[1], scaled_points[2], CV_RGB(255, 0, 0), 2);
+//                cv::line(rawBgraImage, scaled_points[2], scaled_points[3], CV_RGB(255, 0, 0), 2);
+//                cv::line(rawBgraImage, scaled_points[3], scaled_points[0], CV_RGB(255, 0, 0), 2);
                 
-                cv::line(rawBgraImage, scaled_points[0], scaled_points[1], CV_RGB(255, 0, 0), 2);
-                cv::line(rawBgraImage, scaled_points[1], scaled_points[2], CV_RGB(255, 0, 0), 2);
-                cv::line(rawBgraImage, scaled_points[2], scaled_points[3], CV_RGB(255, 0, 0), 2);
-                cv::line(rawBgraImage, scaled_points[3], scaled_points[0], CV_RGB(255, 0, 0), 2);
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self.detectionDisplayLayer showPoints:points];
+                });
             }
         }
     } else {
         NSLog(@"hedNet processImage error: %@", error);
     }
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self capturePhoto];
+    });
+}
+
+- (UIImageOrientation)rotationNeededForImageCapturedWithDeviceOrientation:(UIDeviceOrientation)deviceOrientation
+{
+    UIImageOrientation rotationOrientation;
+    switch (deviceOrientation) {
+        case UIDeviceOrientationPortraitUpsideDown: {
+            rotationOrientation = UIImageOrientationLeft;
+        } break;
+
+        case UIDeviceOrientationLandscapeRight: {
+            rotationOrientation = UIImageOrientationDown;
+        } break;
+
+        case UIDeviceOrientationLandscapeLeft: {
+            rotationOrientation = UIImageOrientationUp;
+        } break;
+
+        case UIDeviceOrientationPortrait:
+        default: {
+            rotationOrientation = UIImageOrientationRight;
+        } break;
+    }
+    return rotationOrientation;
+}
+
+#pragma mark - AVCapturePhotoCaptureDelegate
+// iOS 11+
+- (void)captureOutput:(AVCapturePhotoOutput *)output didFinishProcessingPhoto:(AVCapturePhoto *)photo error:(NSError *)error
+{
+    NSDictionary<NSString *, id> *metadata = photo.metadata;
+//    NSLog(@"%@", metadata);
+    
+    NSInteger ori = [metadata[(__bridge NSString *)kCGImagePropertyOrientation] integerValue];
+    UIImageOrientation orientation = (UIImageOrientation)ori;
+    
+    NSDictionary<NSString *, id> *exifDictionary = metadata[(__bridge NSString *)kCGImagePropertyExifDictionary];
+    
+    NSInteger width = [exifDictionary[(__bridge NSString *)kCGImagePropertyExifPixelXDimension] integerValue];
+    NSInteger height = [exifDictionary[(__bridge NSString *)kCGImagePropertyExifPixelYDimension] integerValue];
+    
+    
+    
+    switch (orientation)
+    {
+        case UIImageOrientationLeftMirrored:
+        {
+            self.scaleForVideo = width*1.f/CGRectGetHeight(self.captureVideoPreviewLayer.bounds);
+            self.videoPixelSize = CGSizeMake(height, width);
+        }
+            break;
+            
+        default:
+        {
+            self.scaleForVideo = height*1.f/CGRectGetHeight(self.captureVideoPreviewLayer.bounds);
+            self.videoPixelSize = CGSizeMake(width, height);
+        }
+            break;
+    }
+    
+    
+    
+    cv::Mat imageMat = [OpenCVUtil cvMatFromImageRef:photo.CGImageRepresentation withOrientation:orientation];
+    [self processImage:imageMat];
+}
+
+// iOS 10-11
+- (void)captureOutput:(AVCapturePhotoOutput *)output didFinishProcessingPhotoSampleBuffer:(CMSampleBufferRef)photoSampleBuffer previewPhotoSampleBuffer:(CMSampleBufferRef)previewPhotoSampleBuffer resolvedSettings:(AVCaptureResolvedPhotoSettings *)resolvedSettings bracketSettings:(AVCaptureBracketedStillImageSettings *)bracketSettings error:(NSError *)error
+{
+    
 }
 
 @end

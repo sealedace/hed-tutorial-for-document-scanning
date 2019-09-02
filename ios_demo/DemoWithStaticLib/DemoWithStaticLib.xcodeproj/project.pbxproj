@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		45752130231A6E2500B99F16 /* KFB_EdgeDetectionDisplayLayer.m in Sources */ = {isa = PBXBuildFile; fileRef = 4575212F231A6E2500B99F16 /* KFB_EdgeDetectionDisplayLayer.m */; };
 		5A1D713E207DE6A9002980B3 /* OpenCVUtil.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5A1D713D207DE6A9002980B3 /* OpenCVUtil.mm */; };
 		5A29C0F6207B8E7E0028C9F0 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 5A29C0F5207B8E7E0028C9F0 /* AppDelegate.m */; };
 		5A29C0F9207B8E7E0028C9F0 /* ViewController.mm in Sources */ = {isa = PBXBuildFile; fileRef = 5A29C0F8207B8E7E0028C9F0 /* ViewController.mm */; };
@@ -27,6 +28,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		4575212E231A6E2500B99F16 /* KFB_EdgeDetectionDisplayLayer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = KFB_EdgeDetectionDisplayLayer.h; sourceTree = "<group>"; };
+		4575212F231A6E2500B99F16 /* KFB_EdgeDetectionDisplayLayer.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = KFB_EdgeDetectionDisplayLayer.m; sourceTree = "<group>"; };
 		5A1D713C207DE6A9002980B3 /* OpenCVUtil.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenCVUtil.h; sourceTree = "<group>"; };
 		5A1D713D207DE6A9002980B3 /* OpenCVUtil.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = OpenCVUtil.mm; sourceTree = "<group>"; };
 		5A29C0F1207B8E7E0028C9F0 /* DemoWithStaticLib.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DemoWithStaticLib.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -103,6 +106,8 @@
 				5A29C0FF207B8E820028C9F0 /* LaunchScreen.storyboard */,
 				5A29C102207B8E820028C9F0 /* Info.plist */,
 				5A29C103207B8E820028C9F0 /* main.m */,
+				4575212E231A6E2500B99F16 /* KFB_EdgeDetectionDisplayLayer.h */,
+				4575212F231A6E2500B99F16 /* KFB_EdgeDetectionDisplayLayer.m */,
 			);
 			path = DemoWithStaticLib;
 			sourceTree = "<group>";
@@ -238,6 +243,7 @@
 				5A29C0F9207B8E7E0028C9F0 /* ViewController.mm in Sources */,
 				5A29C104207B8E820028C9F0 /* main.m in Sources */,
 				5A29C0F6207B8E7E0028C9F0 /* AppDelegate.m in Sources */,
+				45752130231A6E2500B99F16 /* KFB_EdgeDetectionDisplayLayer.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -378,14 +384,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 78MZBHN5NS;
+				DEVELOPMENT_TEAM = WKQV5DN8XZ;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/DemoWithStaticLib/FrameworkAndLib",
 				);
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/DemoWithStaticLib/FrameworkAndLib/FMHEDNet/include";
 				INFOPLIST_FILE = DemoWithStaticLib/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -399,7 +405,7 @@
 					"-force_load",
 					"$(PROJECT_DIR)/DemoWithStaticLib/FrameworkAndLib/TensorFlow/libtensorflow-core.a",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.fengjian.DemoWithStaticLib;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sealedace.DemoWithStaticLib;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -410,14 +416,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 78MZBHN5NS;
+				DEVELOPMENT_TEAM = WKQV5DN8XZ;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/DemoWithStaticLib/FrameworkAndLib",
 				);
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/DemoWithStaticLib/FrameworkAndLib/FMHEDNet/include";
 				INFOPLIST_FILE = DemoWithStaticLib/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 9.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -431,7 +437,7 @@
 					"-force_load",
 					"$(PROJECT_DIR)/DemoWithStaticLib/FrameworkAndLib/TensorFlow/libtensorflow-core.a",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.fengjian.DemoWithStaticLib;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sealedace.DemoWithStaticLib;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
